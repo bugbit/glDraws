@@ -1,3 +1,5 @@
+https://uncovergame.com/2015/01/21/porting-a-complete-c-game-engine-to-html5-through-emscripten/
+
 https://www.3dgep.com/texturing-and-lighting-with-opengl-and-glsl/
 https://programmerclick.com/article/60191392793/
 https://balusoft.wordpress.com/2010/12/17/sistema-solar-con-opengl-delphi-7/
