@@ -5,7 +5,7 @@ LIBS =
 BUILD := ../../build/sierpinski
 EXE := ${BUILD}/sierpinski
 ifdef EMSCRIPTEN
-	override CFLAGS += -s USE_GLFW=3 -s FULL_ES2=1
+	override CFLAGS += -s USE_GLFW=3 -s USE_WEBGL2=1
 	BUILD := ${BUILD}/wasm
 	EXE := ${BUILD}/sierpinski.html
 else

@@ -24,6 +24,8 @@ static const GLfloat g_vertex_buffer_data[] = {
 };
 
 GLFWwindow *window;
+
+// Identificar el vertex buffer
 GLuint vertexbuffer;
 
 void main_loop()
@@ -86,8 +88,23 @@ int main()
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
-    // Identificar el vertex buffer
-    GLuint vertexbuffer;
+#ifndef __EMSCRIPTEN__
+    GLenum err = glewInit();
+    if (GLEW_OK != err)
+    {
+        /* Problem: glewInit failed, something is seriously wrong. */
+        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+
+        glfwTerminate();
+
+        return EXIT_FAILURE;
+    }
+#endif
+
+    GLuint VertexArrayID;
+    glGenVertexArrays(1, &VertexArrayID);
+    glBindVertexArray(VertexArrayID);
+
     // Generar un buffer, poner el resultado en el vertexbuffer que acabamos de crear
     glGenBuffers(1, &vertexbuffer);
     // Los siguientes comandos le darán características especiales al 'vertexbuffer'
