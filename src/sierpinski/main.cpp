@@ -9,6 +9,7 @@
 #include <GL/glew.h>
 #endif
 #include <GLFW/glfw3.h>
+#include "utils.h"
 
 // Un arreglo de 3 vectores que representan 3 vértices
 static const GLfloat g_vertex_buffer_data[] = {
@@ -25,13 +26,79 @@ static const GLfloat g_vertex_buffer_data[] = {
 
 GLFWwindow *window;
 
+GLuint programObject;
+
 // Identificar el vertex buffer
 GLuint vertexbuffer;
+
+static int Init()
+{
+    char vShaderStr[] =
+        "attribute vec4 vPosition;    \n"
+        "void main()                  \n"
+        "{                            \n"
+        "   gl_Position = vPosition;  \n"
+        "}                            \n";
+
+    char fShaderStr[] =
+        "precision mediump float;\n"
+        "void main()                                  \n"
+        "{                                            \n"
+        "  gl_FragColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );\n"
+        "}                                            \n";
+
+    GLuint vertexShader;
+    GLuint fragmentShader;
+    GLint linked;
+
+    vertexShader = gldr::LoadShader(GL_VERTEX_SHADER, vShaderStr);
+    fragmentShader = gldr::LoadShader(GL_FRAGMENT_SHADER, fShaderStr);
+
+    programObject = glCreateProgram();
+    if (programObject == 0)
+        return 0;
+
+    glAttachShader(programObject, vertexShader);
+    glAttachShader(programObject, fragmentShader);
+    glBindAttribLocation(programObject, 0, "vPosition");
+    glLinkProgram(programObject);
+    glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
+    if (!linked)
+    {
+        GLint infoLen = 0;
+        glGetProgramiv(programObject, GL_INFO_LOG_LENGTH, &infoLen);
+        if (infoLen > 1)
+        {
+            char *infoLog = static_cast<char *>(malloc(sizeof(char) * infoLen));
+            glGetProgramInfoLog(programObject, infoLen, NULL, infoLog);
+            printf("Error linking program:\n%s\n", infoLog);
+            free(infoLog);
+        }
+        glDeleteProgram(programObject);
+        
+        return GL_FALSE;
+    }
+
+    GLuint VertexArrayID;
+    glGenVertexArrays(1, &VertexArrayID);
+    glBindVertexArray(VertexArrayID);
+
+    // Generar un buffer, poner el resultado en el vertexbuffer que acabamos de crear
+    glGenBuffers(1, &vertexbuffer);
+    // Los siguientes comandos le darán características especiales al 'vertexbuffer'
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    // Darle nuestros vértices a  OpenGL.
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    return GL_TRUE;
+}
 
 void main_loop()
 {
     // 1rst attribute buffer : vértices
     glEnableVertexAttribArray(0);
+    glUseProgram(programObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
     glVertexAttribPointer(
         0,        // atributo 0. No hay razón particular para el 0, pero debe corresponder en el shader.
@@ -101,16 +168,8 @@ int main()
     }
 #endif
 
-    GLuint VertexArrayID;
-    glGenVertexArrays(1, &VertexArrayID);
-    glBindVertexArray(VertexArrayID);
-
-    // Generar un buffer, poner el resultado en el vertexbuffer que acabamos de crear
-    glGenBuffers(1, &vertexbuffer);
-    // Los siguientes comandos le darán características especiales al 'vertexbuffer'
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    // Darle nuestros vértices a  OpenGL.
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    if (!Init())
+        return EXIT_FAILURE;
 
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(main_loop, 0, true);

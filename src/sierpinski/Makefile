@@ -1,12 +1,12 @@
 .PHONY: clean all
 
-CFLAGS = -o3 -g
+CFLAGS = -o3 -g -I../comlsamon
 LIBS = 
 BUILD := ../../build/sierpinski
 EXE := ${BUILD}/sierpinski
 ifdef EMSCRIPTEN
 	override CFLAGS += -s USE_GLFW=3 -s USE_WEBGL2=1
-	BUILD := ${BUILD}/wasm
+	BUILD := ../../build/wasm/sierpinski
 	EXE := ${BUILD}/sierpinski.html
 else
 	override LIBS += -lglfw -lGL -lGLEW
