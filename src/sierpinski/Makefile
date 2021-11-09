@@ -1,6 +1,6 @@
 .PHONY: clean all
 
-CFLAGS = -o3 -g -I../comlsamon
+CFLAGS = -o3 -g -I../common
 LIBS = 
 BUILD := ../../build/sierpinski
 EXE := ${BUILD}/sierpinski

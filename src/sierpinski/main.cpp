@@ -24,27 +24,39 @@ static const GLfloat g_vertex_buffer_data[] = {
     0.0f,
 };
 
+static const GLfloat g_color_buffer_data[]=
+{
+    1.0, 0.0, 1.0,
+    1.0, 1.0, 0.0,
+    1.0, 0.0, 1.0
+};
+
 GLFWwindow *window;
 
 GLuint programObject;
 
 // Identificar el vertex buffer
-GLuint vertexbuffer;
+GLuint vertexbuffer[2];
 
 static int Init()
 {
     char vShaderStr[] =
         "attribute vec4 vPosition;    \n"
+        "attribute vec3 color;        \n"
+        "varying vec3 vColor;          \n"
         "void main()                  \n"
         "{                            \n"
         "   gl_Position = vPosition;  \n"
+        "   vColor=color;"
         "}                            \n";
 
     char fShaderStr[] =
         "precision mediump float;\n"
+        "varying vec3 vColor;          \n"
         "void main()                                  \n"
         "{                                            \n"
-        "  gl_FragColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );\n"
+        //"  gl_FragColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );\n"
+        "  gl_FragColor = vec4 (vColor, 1.0);         \n"
         "}                                            \n";
 
     GLuint vertexShader;
@@ -61,6 +73,7 @@ static int Init()
     glAttachShader(programObject, vertexShader);
     glAttachShader(programObject, fragmentShader);
     glBindAttribLocation(programObject, 0, "vPosition");
+    glBindAttribLocation(programObject, 1, "color");
     glLinkProgram(programObject);
     glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
     if (!linked)
@@ -79,16 +92,23 @@ static int Init()
         return GL_FALSE;
     }
 
-    GLuint VertexArrayID;
-    glGenVertexArrays(1, &VertexArrayID);
-    glBindVertexArray(VertexArrayID);
+    GLuint VertexArrayID[2];
+    glGenVertexArrays(2, VertexArrayID);
+    glBindVertexArray(VertexArrayID[0]);
 
     // Generar un buffer, poner el resultado en el vertexbuffer que acabamos de crear
-    glGenBuffers(1, &vertexbuffer);
+    glGenBuffers(2, vertexbuffer);
     // Los siguientes comandos le darán características especiales al 'vertexbuffer'
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[0]);
     // Darle nuestros vértices a  OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+    // color 
+    glBindVertexArray(VertexArrayID[1]);
+    // Los siguientes comandos le darán características especiales al 'vertexbuffer'
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
+    // Darle nuestros vértices a  OpenGL.
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     return GL_TRUE;
@@ -99,7 +119,7 @@ void main_loop()
     // 1rst attribute buffer : vértices
     glEnableVertexAttribArray(0);
     glUseProgram(programObject);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[0]);
     glVertexAttribPointer(
         0,        // atributo 0. No hay razón particular para el 0, pero debe corresponder en el shader.
         3,        // tamaño
@@ -108,9 +128,15 @@ void main_loop()
         0,        // Paso
         (void *)0 // desfase del buffer
     );
+     // 2rst attribute buffer : color
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
     // Dibujar el triángulo !
     glDrawArrays(GL_TRIANGLES, 0, 3); // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
     glDisableVertexAttribArray(0);    /* Swap front and back buffers */
+    glDisableVertexAttribArray(1);    /* Swap front and back buffers */
     glfwSwapBuffers(window);
 
     /* Poll for and process events */
