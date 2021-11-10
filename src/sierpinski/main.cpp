@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <cstdio>
+#include <stack>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #define GL_GLEXT_PROTOTYPES
@@ -10,6 +11,18 @@
 #endif
 #include <GLFW/glfw3.h>
 #include "utils.h"
+
+class Level
+{
+public:
+    float point[3][3];
+    int degree;
+};
+
+static std::stack<Level *> levels;
+static int degree_current = 0;
+static int triangle_numbers = 0;
+static GLboolean triangle_draw = GL_TRUE, toward = GL_TRUE;
 
 // Un arreglo de 3 vectores que representan 3 vértices
 static const GLfloat g_vertex_buffer_data[] = {
@@ -24,12 +37,11 @@ static const GLfloat g_vertex_buffer_data[] = {
     0.0f,
 };
 
-static const GLfloat g_color_buffer_data[]=
-{
-    1.0, 0.0, 1.0,
-    1.0, 1.0, 0.0,
-    1.0, 0.0, 1.0
-};
+static const GLfloat g_color_buffer_data[] =
+    {
+        1.0, 0.0, 1.0,
+        1.0, 1.0, 0.0,
+        1.0, 0.0, 1.0};
 
 GLFWwindow *window;
 
@@ -37,6 +49,14 @@ GLuint programObject;
 
 // Identificar el vertex buffer
 GLuint vertexbuffer[2];
+
+static int InitDegree()
+{
+    //GLMake(degree_current*3*sizeof(float))
+    degree_current++;
+
+    return GL_TRUE;
+}
 
 static int Init()
 {
@@ -88,7 +108,7 @@ static int Init()
             free(infoLog);
         }
         glDeleteProgram(programObject);
-        
+
         return GL_FALSE;
     }
 
@@ -103,12 +123,15 @@ static int Init()
     // Darle nuestros vértices a  OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-    // color 
+    // color
     glBindVertexArray(VertexArrayID[1]);
     // Los siguientes comandos le darán características especiales al 'vertexbuffer'
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
     // Darle nuestros vértices a  OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+
+    if (!InitDegree())
+        return GL_FALSE;
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     return GL_TRUE;
@@ -128,7 +151,7 @@ void main_loop()
         0,        // Paso
         (void *)0 // desfase del buffer
     );
-     // 2rst attribute buffer : color
+    // 2rst attribute buffer : color
     glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
