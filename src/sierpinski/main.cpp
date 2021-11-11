@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <cstdio>
+#include <cstring>
 #include <stack>
+#include <math.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #define GL_GLEXT_PROTOTYPES
@@ -12,45 +14,92 @@
 #include <GLFW/glfw3.h>
 #include "utils.h"
 
-class Level
+typedef GLfloat NodePoints[3][2];
+typedef GLfloat (*NodePointsPtr)[2];
+
+class Node
 {
 public:
-    float point[3][3];
+    NodePoints point;
     int degree;
+    int nlado;
 };
 
-static std::stack<Level *> levels;
+const GLuint VERTEX_ATTR_COORDS = 0;
+const GLuint VERTEX_ATTR_COLOR = 1;
+
+static std::stack<Node *> nodes;
 static int degree_current = 0;
 static int triangle_numbers = 0;
+static int line_idx0, line_idx, line_num;
+static GLfloat line_len, line_rad, line_ang;
 static GLboolean triangle_draw = GL_TRUE, toward = GL_TRUE;
 
 // Un arreglo de 3 vectores que representan 3 vértices
-static const GLfloat g_vertex_buffer_data[] = {
+static const NodePoints g_vertex_buffer_data = {
     -1.0f,
     -1.0f,
-    0.0f,
     1.0f,
     -1.0f,
     0.0f,
-    0.0f,
     1.0f,
-    0.0f,
 };
 
 static const GLfloat g_color_buffer_data[] =
     {
-        1.0, 0.0, 1.0,
-        1.0, 1.0, 0.0,
-        1.0, 0.0, 1.0};
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+};
 
 GLFWwindow *window;
 
 GLuint programObject;
 
-// Identificar el vertex buffer
-GLuint vertexbuffer[2];
+// Identificar el vertex buffer, color draw triangle
+// vertex, colores triangles
+GLuint vertexbuffer[4];
 
-static int InitDegree()
+static void SetLine()
+{
+    NodePointsPtr points = nodes.top()->point;
+    GLfloat x = points[line_idx][0] - points[line_idx0][0];
+    GLfloat y = points[line_idx][1] - points[line_idx0][1];
+
+    line_len = sqrt(points[line_idx][0]);
+    line_ang = ((y != 0.0 || x >= 0.0)) ? asin(y / line_len) : M_PI;
+    line_rad = 0;
+    line_num = line_idx + 1;
+}
+
+static void SetDrawTriangle(const NodePoints points)
+{
+    Node *node = new Node();
+
+    memcpy(node->point, points, sizeof(node->point));
+    node->degree = degree_current;
+    node->nlado = 0;
+    nodes.push(node);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[0]);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(node->point), points);
+    line_idx = 1;
+    line_idx0 = 0;
+    SetLine();
+}
+
+static int Init()
+{
+
+    return GL_TRUE;
+}
+
+static int InitLevel()
 {
     //GLMake(degree_current*3*sizeof(float))
     degree_current++;
@@ -58,7 +107,7 @@ static int InitDegree()
     return GL_TRUE;
 }
 
-static int Init()
+static int glInit()
 {
     char vShaderStr[] =
         "attribute vec4 vPosition;    \n"
@@ -92,8 +141,8 @@ static int Init()
 
     glAttachShader(programObject, vertexShader);
     glAttachShader(programObject, fragmentShader);
-    glBindAttribLocation(programObject, 0, "vPosition");
-    glBindAttribLocation(programObject, 1, "color");
+    glBindAttribLocation(programObject, VERTEX_ATTR_COORDS, "vPosition");
+    glBindAttribLocation(programObject, VERTEX_ATTR_COLOR, "color");
     glLinkProgram(programObject);
     glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
     if (!linked)
@@ -112,16 +161,19 @@ static int Init()
         return GL_FALSE;
     }
 
-    GLuint VertexArrayID[2];
-    glGenVertexArrays(2, VertexArrayID);
+    GLuint VertexArrayID[4];
+    glGenVertexArrays(4, VertexArrayID);
     glBindVertexArray(VertexArrayID[0]);
 
     // Generar un buffer, poner el resultado en el vertexbuffer que acabamos de crear
-    glGenBuffers(2, vertexbuffer);
+    glGenBuffers(4, vertexbuffer);
     // Los siguientes comandos le darán características especiales al 'vertexbuffer'
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[0]);
     // Darle nuestros vértices a  OpenGL.
-    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    // target flag is GL_ARRAY_BUFFER, and usage flag is GL_STREAM_DRAW because we will update vertices every frame.
+    glBufferData(GL_ARRAY_BUFFER, sizeof(NodePoints), 0, GL_STREAM_DRAW);
+    //glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_vertex_buffer_data), g_vertex_buffer_data);
 
     // color
     glBindVertexArray(VertexArrayID[1]);
@@ -130,36 +182,42 @@ static int Init()
     // Darle nuestros vértices a  OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
 
-    if (!InitDegree())
+    if (!InitLevel())
         return GL_FALSE;
 
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    SetDrawTriangle(g_vertex_buffer_data);
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
     return GL_TRUE;
 }
 
 void main_loop()
 {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // 1rst attribute buffer : vértices
-    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(VERTEX_ATTR_COORDS);
     glUseProgram(programObject);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[0]);
     glVertexAttribPointer(
-        0,        // atributo 0. No hay razón particular para el 0, pero debe corresponder en el shader.
-        3,        // tamaño
-        GL_FLOAT, // tipo
-        GL_FALSE, // normalizado?
-        0,        // Paso
-        (void *)0 // desfase del buffer
+        VERTEX_ATTR_COORDS, // atributo 0. No hay razón particular para el 0, pero debe corresponder en el shader.
+        2,                  // tamaño
+        GL_FLOAT,           // tipo
+        GL_FALSE,           // normalizado?
+        0,                  // Paso
+        (void *)0           // desfase del buffer
     );
     // 2rst attribute buffer : color
-    glEnableVertexAttribArray(1);
+    glEnableVertexAttribArray(VERTEX_ATTR_COLOR);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glVertexAttribPointer(VERTEX_ATTR_COLOR, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     // Dibujar el triángulo !
-    glDrawArrays(GL_TRIANGLES, 0, 3); // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
-    glDisableVertexAttribArray(0);    /* Swap front and back buffers */
-    glDisableVertexAttribArray(1);    /* Swap front and back buffers */
+    //glDrawArrays(GL_TRIANGLES, 0, 3);               // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
+    glLineWidth(3.f);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 2);
+    glDisableVertexAttribArray(VERTEX_ATTR_COORDS); /* Swap front and back buffers */
+    glDisableVertexAttribArray(VERTEX_ATTR_COLOR);  /* Swap front and back buffers */
     glfwSwapBuffers(window);
 
     /* Poll for and process events */
@@ -218,6 +276,9 @@ int main()
 #endif
 
     if (!Init())
+        return EXIT_FAILURE;
+
+    if (!glInit())
         return EXIT_FAILURE;
 
 #ifdef __EMSCRIPTEN__
