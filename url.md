@@ -1,3 +1,10 @@
+Lines:
+
+https://stackoverflow.com/questions/67780399/draw-multiple-lines-using-opengl-3-0-in-c
+https://learnopengl.com/Advanced-OpenGL/Geometry-Shader
+
+----
+
 https://uncovergame.com/2015/01/21/porting-a-complete-c-game-engine-to-html5-through-emscripten/
 
 https://www.3dgep.com/texturing-and-lighting-with-opengl-and-glsl/
