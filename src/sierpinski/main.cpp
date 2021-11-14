@@ -2,6 +2,9 @@
 #include <cstdio>
 #include <cstring>
 #include <stack>
+#ifdef _MSC_VER 
+#define _USE_MATH_DEFINES 
+#endif // _MSC_VER 
 #include <math.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -110,7 +113,7 @@ static int InitLevel()
 static int glInit()
 {
     char vShaderStr[] =
-        "attribute vec4 vPosition;    \n"
+        "attribute vec2 vPosition;    \n"
         "attribute vec3 color;        \n"
         "varying vec3 vColor;          \n"
         "void main()                  \n"
@@ -215,7 +218,7 @@ void main_loop()
     // Dibujar el triángulo !
     //glDrawArrays(GL_TRIANGLES, 0, 3);               // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
     glLineWidth(3.f);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 2);
+    glDrawArrays(GL_LINES, 0, 2);
     glDisableVertexAttribArray(VERTEX_ATTR_COORDS); /* Swap front and back buffers */
     glDisableVertexAttribArray(VERTEX_ATTR_COLOR);  /* Swap front and back buffers */
     glfwSwapBuffers(window);
