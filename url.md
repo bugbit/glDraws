@@ -1,5 +1,11 @@
 Lines:
 
+https://solarianprogrammer.com/2013/05/13/opengl-101-drawing-primitives/
+By default, OpenGL fills a triangle with color, it is however possible to change this behavior if we use the function glPolygonMode. Copy ex_4 to ex_6 and add this line at the end of the initialize function:
+
+1 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+
 https://stackoverflow.com/questions/67780399/draw-multiple-lines-using-opengl-3-0-in-c
 https://learnopengl.com/Advanced-OpenGL/Geometry-Shader
 
