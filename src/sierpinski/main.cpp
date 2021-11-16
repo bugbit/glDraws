@@ -113,22 +113,25 @@ static int InitLevel()
 static int glInit()
 {
     char vShaderStr[] =
+        "#version 330                 \n"
         "attribute vec2 vPosition;    \n"
         "attribute vec3 color;        \n"
         "varying vec3 vColor;          \n"
         "void main()                  \n"
         "{                            \n"
         "   gl_Position = vec4(vPosition,0.0,1.0);  \n"
+        "   gl_PointSize = 5.0;                     \n"
         "   vColor=color;"
         "}                            \n";
 
     char fShaderStr[] =
+        "#version 330                 \n"
         "precision mediump float;\n"
         "varying vec3 vColor;          \n"
         "void main()                                  \n"
         "{                                            \n"
-        //"  gl_FragColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );\n"
-        "  gl_FragColor = vec4 (vColor, 1.0);         \n"
+        "  gl_FragColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );\n"
+        //"  gl_FragColor = vec4 (vColor, 1.0);         \n"
         "}                                            \n";
 
     GLuint vertexShader;
@@ -217,8 +220,7 @@ void main_loop()
 
     // Dibujar el triángulo !
     //glDrawArrays(GL_TRIANGLES, 0, 3);               // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
-    glLineWidth(3.f);
-    glDrawArrays(GL_LINES, 0, 2);
+    glDrawArrays(GL_POINTS, 0, 2);
     glDisableVertexAttribArray(VERTEX_ATTR_COORDS); /* Swap front and back buffers */
     glDisableVertexAttribArray(VERTEX_ATTR_COLOR);  /* Swap front and back buffers */
     glfwSwapBuffers(window);
@@ -246,11 +248,11 @@ int main()
         return EXIT_FAILURE;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    // glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
     /* Create a windowed mode window and its OpenGL context */
     window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
