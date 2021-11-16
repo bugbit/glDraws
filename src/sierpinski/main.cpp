@@ -219,8 +219,9 @@ void main_loop()
     glVertexAttribPointer(VERTEX_ATTR_COLOR, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     // Dibujar el triángulo !
-    //glDrawArrays(GL_TRIANGLES, 0, 3);               // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
-    glDrawArrays(GL_POINTS, 0, 2);
+    glDrawArrays(GL_TRIANGLES, 0, 3);               // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINES);
+    //glDrawArrays(GL_LINES, 0, 2);
     glDisableVertexAttribArray(VERTEX_ATTR_COORDS); /* Swap front and back buffers */
     glDisableVertexAttribArray(VERTEX_ATTR_COLOR);  /* Swap front and back buffers */
     glfwSwapBuffers(window);
