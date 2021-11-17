@@ -2,9 +2,9 @@
 #include <cstdio>
 #include <cstring>
 #include <stack>
-#ifdef _MSC_VER 
-#define _USE_MATH_DEFINES 
-#endif // _MSC_VER 
+#ifdef _MSC_VER
+#define _USE_MATH_DEFINES
+#endif // _MSC_VER
 #include <math.h>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -113,32 +113,51 @@ static int InitLevel()
 static int glInit()
 {
     char vShaderStr[] =
-        "#version 330                 \n"
+        //"#version 330 es              \n"
         "attribute vec2 vPosition;    \n"
-        "attribute vec3 color;        \n"
-        "varying vec3 vColor;          \n"
+        //"attribute vec3 color;        \n"
+        //"varying vec3 vColor;          \n"
         "void main()                  \n"
         "{                            \n"
         "   gl_Position = vec4(vPosition,0.0,1.0);  \n"
         "   gl_PointSize = 5.0;                     \n"
-        "   vColor=color;"
+        //"   vColor=color;"
         "}                            \n";
 
     char fShaderStr[] =
-        "#version 330                 \n"
+        //"#version 300 es              \n"
         "precision mediump float;\n"
-        "varying vec3 vColor;          \n"
+        //"varying vec3 vColor;          \n"
+        "out vec4 outColor;           \n"
         "void main()                                  \n"
         "{                                            \n"
-        "  gl_FragColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );\n"
+        //"  gl_FragColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );\n"
         //"  gl_FragColor = vec4 (vColor, 1.0);         \n"
+        "  outColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );    \n"
         "}                                            \n";
+
+    char vShaderStr2[] =
+        "#version 300 es\n"
+        "uniform int numVerts;\n"
+        "uniform vec2 resolution;\n"
+        "#define PI radians(180.0)\n"
+        "void main() {\n"
+        "float u = float(gl_VertexID) / float(numVerts);  // goes from 0 to 1\n"
+        "float angle = u * PI * 2.0;                      // goes from 0 to 2PI\n"
+        "float radius = 0.8;\n"
+        "vec2 pos = vec2(cos(angle), sin(angle)) * radius;\n"
+        "float aspect = resolution.y / resolution.x;\n"
+        "vec2 scale = vec2(aspect, 1);\n"
+        "gl_Position = vec4(pos * scale, 0, 1);\n"
+        "gl_PointSize = 5.0;\n"
+        "}";
 
     GLuint vertexShader;
     GLuint fragmentShader;
     GLint linked;
 
     vertexShader = gldr::LoadShader(GL_VERTEX_SHADER, vShaderStr);
+    //vertexShader = gldr::LoadShader(GL_VERTEX_SHADER, vShaderStr2);
     fragmentShader = gldr::LoadShader(GL_FRAGMENT_SHADER, fShaderStr);
 
     programObject = glCreateProgram();
@@ -148,7 +167,7 @@ static int glInit()
     glAttachShader(programObject, vertexShader);
     glAttachShader(programObject, fragmentShader);
     glBindAttribLocation(programObject, VERTEX_ATTR_COORDS, "vPosition");
-    glBindAttribLocation(programObject, VERTEX_ATTR_COLOR, "color");
+    //glBindAttribLocation(programObject, VERTEX_ATTR_COLOR, "color");
     glLinkProgram(programObject);
     glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
     if (!linked)
@@ -176,22 +195,26 @@ static int glInit()
     // Los siguientes comandos le darán características especiales al 'vertexbuffer'
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[0]);
     // Darle nuestros vértices a  OpenGL.
-    //glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
     // target flag is GL_ARRAY_BUFFER, and usage flag is GL_STREAM_DRAW because we will update vertices every frame.
-    glBufferData(GL_ARRAY_BUFFER, sizeof(NodePoints), 0, GL_STREAM_DRAW);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(NodePoints), 0, GL_STREAM_DRAW);
     //glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(g_vertex_buffer_data), g_vertex_buffer_data);
 
     // color
+    /*
     glBindVertexArray(VertexArrayID[1]);
     // Los siguientes comandos le darán características especiales al 'vertexbuffer'
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
     // Darle nuestros vértices a  OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
+    */
 
+    /*
     if (!InitLevel())
         return GL_FALSE;
 
     SetDrawTriangle(g_vertex_buffer_data);
+    */
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -200,6 +223,28 @@ static int glInit()
 
 void main_loop()
 {
+    /*
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    const int vertexIdLoc = glGetAttribLocation(programObject, "vertexId");
+    const int numVertsLoc = glGetUniformLocation(programObject, "numVerts");
+    const int resolutionLoc = glGetUniformLocation(programObject, "resolution");
+
+    const int numVerts = 20;
+
+    // draw
+    //gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+    glUseProgram(programObject);
+
+    // tell the shader the number of verts
+    glUniform1i(numVertsLoc, numVerts);
+    // tell the shader the resolution
+    glUniform2f(resolutionLoc, 2, 2);
+
+    const int offset = 0;
+    glDrawArrays(GL_LINES, offset, numVerts);
+    */
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // 1rst attribute buffer : vértices
     glEnableVertexAttribArray(VERTEX_ATTR_COORDS);
@@ -213,17 +258,20 @@ void main_loop()
         0,                  // Paso
         (void *)0           // desfase del buffer
     );
+    /*
     // 2rst attribute buffer : color
     glEnableVertexAttribArray(VERTEX_ATTR_COLOR);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
     glVertexAttribPointer(VERTEX_ATTR_COLOR, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    */
 
     // Dibujar el triángulo !
-    glDrawArrays(GL_TRIANGLES, 0, 3);               // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
+    glDrawArrays(GL_TRIANGLES, 0, 3); // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINES);
     //glDrawArrays(GL_LINES, 0, 2);
-    glDisableVertexAttribArray(VERTEX_ATTR_COORDS); /* Swap front and back buffers */
-    glDisableVertexAttribArray(VERTEX_ATTR_COLOR);  /* Swap front and back buffers */
+    glDisableVertexAttribArray(VERTEX_ATTR_COORDS); // Swap front and back buffers
+    //glDisableVertexAttribArray(VERTEX_ATTR_COLOR);  // Swap front and back buffers
+
     glfwSwapBuffers(window);
 
     /* Poll for and process events */
@@ -273,6 +321,8 @@ int main()
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
+
+    glViewport(0, 0, 640, 480);
 
 #ifndef __EMSCRIPTEN__
     GLenum err = glewInit();
