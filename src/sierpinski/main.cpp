@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 #include <stack>
 #ifdef _MSC_VER
 #define _USE_MATH_DEFINES
@@ -17,38 +18,35 @@
 #include <GLFW/glfw3.h>
 #include "utils.h"
 
+enum ETypeNode
+{
+    DrawTriangle,
+    LeftTriangle,
+    TopTriangle,
+    RightTriangle
+};
+
 typedef GLfloat NodePoints[3][2];
 typedef GLfloat (*NodePointsPtr)[2];
 
 class Node
 {
 public:
-    NodePoints point;
-    int degree;
-    int nlado;
+    int posTriangle, degree;
+    ETypeNode type;
 };
-
-GLuint positionAttributeLocation = 0;
-GLuint VERTEX_ATTR_COLOR = 1;
-
-static std::stack<Node *> nodes;
-static int degree_current = 0;
-static int triangle_numbers = 0;
-static int line_idx0, line_idx, line_num;
-static GLfloat line_len, line_rad, line_ang;
-static GLboolean triangle_draw = GL_TRUE, toward = GL_TRUE;
 
 // Un arreglo de 3 vectores que representan 3 vértices
 //static const NodePoints g_vertex_buffer_data = {
 // static const float g_vertex_buffer_data[] = {
-//     -1.0f,
-//     -1.0f,
-//     1.0f,
-//     -1.0f,
-//     0.0f,
-//     1.0f,
-//     -1.0f,
-//     -1.0f};
+static const GLfloat triangle0[] =
+    {
+        -1.0f,
+        -1.0f,
+        1.0f,
+        -1.0f,
+        0.0f,
+        1.0f};
 
 static const float g_vertex_buffer_data[] = {
     -0.5, 0.5, -0, 0.5, 0.0, 0.0, 0.5, 0.5, -0.5, 0.5};
@@ -68,13 +66,32 @@ static const GLfloat g_color_buffer_data[] =
 
 GLFWwindow *window;
 
+static std::vector<GLfloat> triangles;
+static std::stack<Node *> nodes;
+static GLfloat *trianglesPtr;
+static int triangle_line_pos;
+
+// static int degree_current = 0;
+// static int triangle_numbers = 0;
+// static int line_idx0, line_idx, line_num;
+// static GLfloat line_len, line_rad, line_ang;
+// static GLboolean triangle_draw = GL_TRUE, toward = GL_TRUE;
+
+GLuint programLineObject;
 GLuint programObject;
+GLuint posLineUniformLocation;
+GLuint angleLineUniformLocation;
+GLuint radiusLineUniformLocation;
+GLuint positionAttributeLocation;
+GLuint VERTEX_ATTR_COLOR;
 
 // Identificar el vertex buffer, color draw triangle
 // vertex, colores triangles
 GLuint vertexbuffer[4];
 
 GLuint VertexArrayID[4];
+
+/*
 
 static void SetLine()
 {
@@ -103,12 +120,22 @@ static void SetDrawTriangle(const NodePoints points)
     SetLine();
 }
 
+*/
+
 static int Init()
 {
+    const GLfloat *t = triangle0;
+
+    for (int i = 0; i < sizeof(triangle0) / sizeof(triangle0[0]); i++)
+        triangles.push_back(*t++);
+
+    trianglesPtr = triangles.data();
+    triangle_line_pos = 0;
 
     return GL_TRUE;
 }
 
+/*
 static int InitLevel()
 {
     //GLMake(degree_current*3*sizeof(float))
@@ -116,12 +143,33 @@ static int InitLevel()
 
     return GL_TRUE;
 }
+*/
 
 static int glInit()
 {
+    char vShaderLineStr[] =
+        "#version 300 es                \n"
+        "uniform vec2 pos;              \n"
+        "uniform float angle;           \n"
+        "uniform float radius;          \n"
+        "void main()                    \n"
+        "{                              \n"
+        "   gl_Position = (gl_VertexID==1) ? pos : pos + vec2(cos(angle), sin(angle)) * radius; \n"
+        "}                              \n";
+
+    char fShaderLineStr[] =
+        "#version 300 es                                \n"
+        "precision highp float;                         \n"
+        "out vec4 outColor;                             \n"
+        "void main()                                    \n"
+        "{                                              \n"
+        "  outColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );      \n"
+        "}                                              \n";
+
     char vShaderStr[] =
         "#version 300 es                \n"
-        "in vec4 vPosition;            \n"
+        "precision highp float;         \n"
+        "in vec4 vPosition;             \n"
         //"attribute vec3 color;        \n"
         //"out vec3 vColor;          \n"
         "void main()                  \n"
@@ -143,21 +191,21 @@ static int glInit()
         "  outColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );    \n"
         "}                                            \n";
 
-    char vShaderStr2[] =
-        "#version 300 es\n"
-        "uniform int numVerts;\n"
-        "uniform vec2 resolution;\n"
-        "#define PI radians(180.0)\n"
-        "void main() {\n"
-        "float u = float(gl_VertexID) / float(numVerts);  // goes from 0 to 1\n"
-        "float angle = u * PI * 2.0;                      // goes from 0 to 2PI\n"
-        "float radius = 0.8;\n"
-        "vec2 pos = vec2(cos(angle), sin(angle)) * radius;\n"
-        "float aspect = resolution.y / resolution.x;\n"
-        "vec2 scale = vec2(aspect, 1);\n"
-        "gl_Position = vec4(pos * scale, 0, 1);\n"
-        "gl_PointSize = 5.0;\n"
-        "}";
+    // char vShaderStr2[] =
+    //     "#version 300 es\n"
+    //     "uniform int numVerts;\n"
+    //     "uniform vec2 resolution;\n"
+    //     "#define PI radians(180.0)\n"
+    //     "void main() {\n"
+    //     "float u = float(gl_VertexID) / float(numVerts);  // goes from 0 to 1\n"
+    //     "float angle = u * PI * 2.0;                      // goes from 0 to 2PI\n"
+    //     "float radius = 0.8;\n"
+    //     "vec2 pos = vec2(cos(angle), sin(angle)) * radius;\n"
+    //     "float aspect = resolution.y / resolution.x;\n"
+    //     "vec2 scale = vec2(aspect, 1);\n"
+    //     "gl_Position = vec4(pos * scale, 0, 1);\n"
+    //     "gl_PointSize = 5.0;\n"
+    //     "}";
 
     GLuint vertexShader;
     GLuint fragmentShader;
@@ -169,12 +217,23 @@ static int glInit()
 
     programObject = glCreateProgram();
     if (programObject == 0)
-        return 0;
+        return GL_FALSE;
 
     glAttachShader(programObject, vertexShader);
     glAttachShader(programObject, fragmentShader);
     glLinkProgram(programObject);
     glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
+    if (linked)
+    {
+        programLineObject = glCreateProgram();
+        if (programLineObject == 0)
+            return GL_FALSE;
+
+        glAttachShader(programLineObject, vertexShader);
+        glAttachShader(programLineObject, fragmentShader);
+        glLinkProgram(programLineObject);
+        glGetProgramiv(programLineObject, GL_LINK_STATUS, &linked);
+    }
     if (!linked)
     {
         GLint infoLen = 0;
@@ -190,6 +249,10 @@ static int glInit()
 
         return GL_FALSE;
     }
+
+    posLineUniformLocation = glGetUniformLocation(programObject, "pos");
+    angleLineUniformLocation = glGetUniformLocation(programObject, "angle");
+    radiusLineUniformLocation = glGetUniformLocation(programObject, "radius");
 
     positionAttributeLocation = glGetAttribLocation(programObject, "vPosition");
     //VERTEX_ATTR_COLOR=glGetAttribLocation(programObject, VERTEX_ATTR_COLOR, "color");
@@ -245,6 +308,10 @@ static int glInit()
 void main_loop()
 {
     glViewport(0, 0, 640, 480);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glUseProgram(programObject);
+    glUniform2f(posLineUniformLocation, triangles[triangle_line_pos], triangles[triangle_line_pos + 1]);
 
     /*
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -268,7 +335,7 @@ void main_loop()
     const int offset = 0;
     glDrawArrays(GL_LINES, offset, numVerts);
     */
-    glClear(GL_COLOR_BUFFER_BIT);
+
     // 1rst attribute buffer : vértices
     //glEnableVertexAttribArray(positionAttributeLocation);
     glUseProgram(programObject);
@@ -336,6 +403,9 @@ int main()
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
+    if (!Init())
+        return EXIT_FAILURE;
+
 #ifndef __EMSCRIPTEN__
     GLenum err = glewInit();
     if (GLEW_OK != err)
@@ -348,9 +418,6 @@ int main()
         return EXIT_FAILURE;
     }
 #endif
-
-    if (!Init())
-        return EXIT_FAILURE;
 
     if (!glInit())
         return EXIT_FAILURE;
