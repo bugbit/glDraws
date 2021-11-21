@@ -36,20 +36,27 @@ public:
     ETypeNode type;
 };
 
+class Line
+{
+public:
+    GLfloat *line, angle, radius;
+};
+
 // Un arreglo de 3 vectores que representan 3 vértices
 //static const NodePoints g_vertex_buffer_data = {
 // static const float g_vertex_buffer_data[] = {
 static const GLfloat triangle0[] =
     {
-        -1.0f,
-        -1.0f,
-        1.0f,
-        -1.0f,
+        -0.9f,
+        -0.9f,
         0.0f,
-        1.0f};
+        0.9f,
+        0.9f,
+        -0.9f,
+};
 
 static const float g_vertex_buffer_data[] = {
-    -0.5, 0.5, -0, 0.5, 0.0, 0.0, 0.5, 0.5, -0.5, 0.5};
+    -0.5, 0.5, -0.2, 0.5, 0.0, 0.0, 0.5, 0.5, -0.5, 0.5};
 
 static const GLfloat g_color_buffer_data[] =
     {
@@ -68,8 +75,10 @@ GLFWwindow *window;
 
 static std::vector<GLfloat> triangles;
 static std::stack<Node *> nodes;
-static GLfloat *trianglesPtr;
-static int triangle_line_pos;
+static Line lines[3];
+static int triangle_idx = 0, line_nvec = 0;
+static GLfloat line_x, line_y, line_angle, line_len, line_radius;
+static double lastTime;
 
 // static int degree_current = 0;
 // static int triangle_numbers = 0;
@@ -85,11 +94,52 @@ GLuint radiusLineUniformLocation;
 GLuint positionAttributeLocation;
 GLuint VERTEX_ATTR_COLOR;
 
-// Identificar el vertex buffer, color draw triangle
-// vertex, colores triangles
-GLuint vertexbuffer[4];
+GLuint vao[4];
 
-GLuint VertexArrayID[4];
+static void SetTriangle()
+{
+    Line *l = lines;
+    GLfloat *t, *to;
+
+    t = to = triangles.data() + triangle_idx;
+    for (int i = 0; i < 3; i++, l++)
+    {
+        GLfloat *t0 = (i == 2) ? to : t + 2;
+        GLfloat x = *t - *t0;
+        GLfloat y = t[1] - t0[1];
+
+        l->line = t;
+        l->radius = sqrt(x * x + y * y);
+        l->angle =
+            ((y != 0.0))
+                ? asin(-y / line_radius)
+            : (*t < 0)
+                ? -M_PI
+                : M_PI;
+        t = t0;
+    }
+    line_len = 0;
+    line_nvec = 1;
+}
+
+static void SetLine()
+{
+    int nvec0 = (line_nvec == 2) ? 0 : line_nvec + 2;
+    int idx0 = triangle_idx + nvec0;
+    int idx = triangle_idx + line_nvec;
+    GLfloat x0 = triangles[idx0];
+    GLfloat y0 = triangles[idx0 + 1];
+
+    line_x = triangles[idx];
+    line_y = triangles[idx + 1];
+
+    GLfloat x = line_x - x0;
+    GLfloat y = line_y - y0;
+
+    line_radius = sqrt(x * x + y * y);
+    line_angle = ((y != 0.0 || x >= 0.0)) ? asin(-y / line_radius) : M_PI;
+    line_len = 0;
+}
 
 /*
 
@@ -129,8 +179,8 @@ static int Init()
     for (int i = 0; i < sizeof(triangle0) / sizeof(triangle0[0]); i++)
         triangles.push_back(*t++);
 
-    trianglesPtr = triangles.data();
-    triangle_line_pos = 0;
+    SetLine();
+    SetTriangle();
 
     return GL_TRUE;
 }
@@ -154,7 +204,7 @@ static int glInit()
         "uniform float radius;          \n"
         "void main()                    \n"
         "{                              \n"
-        "   gl_Position = (gl_VertexID==1) ? pos : pos + vec2(cos(angle), sin(angle)) * radius; \n"
+        "   gl_Position = vec4((gl_VertexID==1) ? pos : pos + vec2(cos(angle), sin(angle)) * radius,0,1); \n"
         "}                              \n";
 
     char fShaderLineStr[] =
@@ -163,7 +213,7 @@ static int glInit()
         "out vec4 outColor;                             \n"
         "void main()                                    \n"
         "{                                              \n"
-        "  outColor = vec4 ( 0.0, 0.0, 1.0, 1.0 );      \n"
+        "  outColor = vec4 ( 0.0, 0.0, 0.0, 1.0 );      \n"
         "}                                              \n";
 
     char vShaderStr[] =
@@ -225,6 +275,9 @@ static int glInit()
     glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
     if (linked)
     {
+        vertexShader = gldr::LoadShader(GL_VERTEX_SHADER, vShaderLineStr);
+        fragmentShader = gldr::LoadShader(GL_FRAGMENT_SHADER, fShaderLineStr);
+
         programLineObject = glCreateProgram();
         if (programLineObject == 0)
             return GL_FALSE;
@@ -250,12 +303,16 @@ static int glInit()
         return GL_FALSE;
     }
 
-    posLineUniformLocation = glGetUniformLocation(programObject, "pos");
-    angleLineUniformLocation = glGetUniformLocation(programObject, "angle");
-    radiusLineUniformLocation = glGetUniformLocation(programObject, "radius");
+    posLineUniformLocation = glGetUniformLocation(programLineObject, "pos");
+    angleLineUniformLocation = glGetUniformLocation(programLineObject, "angle");
+    radiusLineUniformLocation = glGetUniformLocation(programLineObject, "radius");
 
     positionAttributeLocation = glGetAttribLocation(programObject, "vPosition");
     //VERTEX_ATTR_COLOR=glGetAttribLocation(programObject, VERTEX_ATTR_COLOR, "color");
+
+    // Identificar el vertex buffer, color draw triangle
+    // vertex, colores triangles
+    GLuint vertexbuffer[2];
 
     // Generar un buffer, poner el resultado en el vertexbuffer que acabamos de crear
     glGenBuffers(1, vertexbuffer);
@@ -266,8 +323,8 @@ static int glInit()
     // Darle nuestros vértices a  OpenGL.
     glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
-    glGenVertexArrays(1, VertexArrayID);
-    glBindVertexArray(VertexArrayID[0]);
+    glGenVertexArrays(1, vao);
+    glBindVertexArray(vao[0]);
 
     glEnableVertexAttribArray(positionAttributeLocation);
 
@@ -307,50 +364,47 @@ static int glInit()
 
 void main_loop()
 {
-    glViewport(0, 0, 640, 480);
+    double time = glfwGetTime();
+    double elapse = time - lastTime;
+
+    lastTime = time;
+
+    int width, height;
+    glfwGetWindowSize(window, &width, &height);
+
+    glViewport(0, 0, width, height);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glUseProgram(programObject);
-    glUniform2f(posLineUniformLocation, triangles[triangle_line_pos], triangles[triangle_line_pos + 1]);
+    line_len += elapse / 0.5f;
 
-    /*
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(programLineObject);
 
-    const int vertexIdLoc = glGetAttribLocation(programObject, "vertexId");
-    const int numVertsLoc = glGetUniformLocation(programObject, "numVerts");
-    const int resolutionLoc = glGetUniformLocation(programObject, "resolution");
+    Line *l = lines;
+    for (int i = line_nvec - 1; i-- > 0; l++)
+    {
+        glUniform2f(posLineUniformLocation, *(l->line), l->line[1]);
+        glUniform1f(angleLineUniformLocation, l->angle);
+        glUniform1f(radiusLineUniformLocation, l->radius);
+        glDrawArrays(GL_LINES, 0, 2);
+    }
+    glUniform2f(posLineUniformLocation, *(l->line), l->line[1]);
+    glUniform1f(angleLineUniformLocation, l->angle);
+    glUniform1f(radiusLineUniformLocation, line_len);
+    glDrawArrays(GL_LINES, 0, 2);
 
-    const int numVerts = 20;
-
-    // draw
-    //gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-    glUseProgram(programObject);
-
-    // tell the shader the number of verts
-    glUniform1i(numVertsLoc, numVerts);
-    // tell the shader the resolution
-    glUniform2f(resolutionLoc, 2, 2);
-
-    const int offset = 0;
-    glDrawArrays(GL_LINES, offset, numVerts);
-    */
+    if (line_len > l->radius)
+    {
+        line_len = 0;
+        if (line_nvec++ >= 3)
+            line_nvec = 1;
+    }
 
     // 1rst attribute buffer : vértices
     //glEnableVertexAttribArray(positionAttributeLocation);
     glUseProgram(programObject);
-    glBindVertexArray(VertexArrayID[0]);
-    /*
-    // 2rst attribute buffer : color
-    glEnableVertexAttribArray(VERTEX_ATTR_COLOR);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer[1]);
-    glVertexAttribPointer(VERTEX_ATTR_COLOR, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    */
+    glBindVertexArray(vao[0]);
 
-    // Dibujar el triángulo !
-    //glDrawArrays(GL_TRIANGLES, 0, 3); // Empezar desde el vértice 0S; 3 vértices en total -> 1 triángulo
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINES);
-    glDrawArrays(GL_LINES, 0, 4);
+    glDrawArrays(GL_LINES, 0, 2);
     //glDisableVertexAttribArray(VERTEX_ATTR_COORDS); // Swap front and back buffers
     //glDisableVertexAttribArray(VERTEX_ATTR_COLOR);  // Swap front and back buffers
 
@@ -421,7 +475,7 @@ int main()
 
     if (!glInit())
         return EXIT_FAILURE;
-
+    lastTime = glfwGetTime();
 #ifdef __EMSCRIPTEN__
     emscripten_set_main_loop(main_loop, 0, true);
 #else
