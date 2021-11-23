@@ -14,6 +14,8 @@ https://learnopengl.com/Advanced-OpenGL/Geometry-Shader
 
 ----
 
+https://medium.com/srojas19/profundizaci%C3%B3n-webgl-2-f21d3a7e63d4
+
 https://uncovergame.com/2015/01/21/porting-a-complete-c-game-engine-to-html5-through-emscripten/
 
 https://www.3dgep.com/texturing-and-lighting-with-opengl-and-glsl/

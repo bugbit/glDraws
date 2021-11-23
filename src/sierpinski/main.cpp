@@ -55,6 +55,46 @@ static const GLfloat triangle0[] =
         -0.9f,
 };
 
+static const GLfloat coloresmap[] =
+    {
+        // RGBA
+        // blue
+        0,
+        0,
+        1,
+        1,
+        // red
+        1,
+        0,
+        0,
+        1,
+        // gred
+        0,
+        1,
+        0,
+        1,
+        // white
+        1,
+        1,
+        1,
+        1,
+        // Yellow
+        1,
+        1,
+        0,
+        1,
+        // Violet
+        0.93f,
+        0.50f,
+        0.93f,
+        1,
+        // Orange
+        1,
+        0.64f,
+        0,
+        1,
+};
+
 static const float g_vertex_buffer_data[] = {
     -0.5, 0.5, -0.2, 0.5, 0.0, 0.0, 0.5, 0.5, -0.5, 0.5};
 
@@ -74,6 +114,7 @@ static const GLfloat g_color_buffer_data[] =
 GLFWwindow *window;
 
 static std::vector<GLfloat> triangles;
+static std::vector<GLfloat> colores;
 static std::stack<Node *> nodes;
 static Line lines[3];
 static int triangle_idx = 0, line_nvec = 0;
@@ -122,11 +163,12 @@ static void SetTriangle()
     line_nvec = 1;
 }
 
-static void SetLine()
+static void SetLine(bool back = false)
 {
+    int nvec = line_nvec;
     int nvec0 = (line_nvec == 2) ? 0 : line_nvec + 2;
     int idx0 = triangle_idx + nvec0;
-    int idx = triangle_idx + line_nvec;
+    int idx = triangle_idx + nvec;
     GLfloat x0 = triangles[idx0];
     GLfloat y0 = triangles[idx0 + 1];
 
@@ -176,8 +218,20 @@ static int Init()
 {
     const GLfloat *t = triangle0;
 
-    for (int i = 0; i < sizeof(triangle0) / sizeof(triangle0[0]); i++)
-        triangles.push_back(*t++);
+    for (int i = 0; i < 3; i++)
+    {
+        const GLfloat *c = coloresmap;
+
+        for (int j = 0; j < 2; j++)
+        {
+            triangles.push_back(*t++);
+            colores.push_back(*c++);
+        }
+        for (int j = 0; j < 2; j++)
+            colores.push_back(*c++);
+    }
+    // for (int i = 0; i < sizeof(triangle0) / sizeof(triangle0[0]); i++)
+    //     triangles.push_back(*t++);
 
     SetLine();
     SetTriangle();
